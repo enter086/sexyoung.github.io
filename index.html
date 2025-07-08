@@ -1,8 +1,1878 @@
-<html>
-  <head>
-    <meta http-equiv="refresh" content="0; https://www.sexyoung.tw/">
-  </head>
-  <body>
-    <a href="third-party.pptx">ppt download</a>
-  </body>
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>排課程式 - 輸入介面 (含匯入匯出)</title>
+    <style>
+        /* 整體頁面樣式 */
+        body {
+            font-family: -apple-system, BlinkMacMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #212121;
+        }
+        /* 主要容器 */
+        .container {
+            max-width: 1200px; /* 增加最大寬度以容納課表 */
+            margin: auto;
+            background: #ffffff;
+            padding: 25px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        /* 標題樣式 */
+        h1, h2 {
+            color: #005f73;
+            border-bottom: 3px solid #dee2e6;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        h2 {
+            margin-top: 30px;
+        }
+        /* 區塊樣式 */
+        .section {
+            margin-bottom: 35px;
+        }
+        /* 表單樣式 */
+        form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            align-items: end;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+        /* 輸入框和下拉選單樣式 */
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            box-sizing: border-box; /* 確保 padding 不會影響寬度 */
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background-color: #fff;
+        }
+        input[type="text"]:focus, input[type="number"]:focus, select:focus {
+            border-color: #80bdff;
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+        }
+        /* 針對多選下拉選單的特殊樣式 */
+        select[multiple] {
+            height: 70px; /* 提供足夠高度顯示選項 */
+            padding: 5px;
+        }
+        /* 表單內的標籤 */
+        label {
+            font-size: 0.9em;
+            color: #495057;
+            margin-bottom: 5px;
+            display: block;
+        }
+        
+        /* === 時段核取方塊容器樣式調整 === */
+        /* 主要時段選擇區域的整體外觀 */
+        .slot-selection-area {
+            border: 1px solid #ced4da;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #fff;
+            max-height: 300px; /* 限制高度並允許滾動 */
+            overflow-y: auto;
+        }
+
+        /* 星期選擇區塊 */
+        .day-selector-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 10px;
+        }
+        .day-selector-group label {
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            font-size: 1em;
+            margin-right: 15px;
+            cursor: pointer;
+        }
+        .day-selector-group input[type="checkbox"] {
+            margin-right: 5px;
+        }
+
+        /* 小時顯示區塊的容器 */
+        .hour-group-container {
+            display: flex; /* 讓每個星期的小時分組橫向排列 */
+            flex-wrap: wrap; /* 允許換行 */
+            gap: 15px; /* 各星期組之間的間距 */
+        }
+
+        /* 單個星期的小時分組 */
+        .day-hour-group {
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 8px 10px;
+            background-color: #f0f0f0;
+            min-width: 130px; /* 確保每個星期組有最小寬度 */
+            flex-grow: 1; /* 允許在空間足夠時成長 */
+            flex-basis: calc(33.33% - 15px); /* 嘗試每行三列，減去 gap */
+            box-sizing: border-box; 
+            /* 預設隱藏，通過 JS 控制顯示 */
+            display: none; 
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.3s ease-out, transform 0.3s ease-out, display 0.3s;
+        }
+        .day-hour-group.active { /* 顯示時的樣式 */
+            display: block; /* 或 flex */
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* 避免因為 display: block/none 導致的瞬間變化，用 class 控制 */
+        .day-hour-group[style*="display: none"] { /* 處理 transition 後的 display 隱藏 */
+            transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+            opacity: 0; /* 在隱藏前先淡出 */
+            transform: translateY(10px);
+        }
+
+        .day-hour-group h5 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            color: #005f73;
+            font-size: 1em;
+            border-bottom: 1px solid #d0d0d0;
+            padding-bottom: 5px;
+        }
+
+        .day-hour-group .checkbox-list {
+            display: flex;
+            flex-direction: column; /* 垂直排列每個時段 */
+            gap: 2px; /* 時段之間的微小間距 */
+        }
+
+        .day-hour-group label {
+            display: flex;
+            align-items: center;
+            font-size: 0.85em; /* 時段文字稍微小一點 */
+            margin-bottom: 0; 
+            cursor: pointer;
+            padding: 2px 0;
+        }
+        .day-hour-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 5px;
+            cursor: pointer;
+        }
+
+        /* 老師時段選擇中的教室下拉選單 */
+        .teacher-slot-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 2px 0;
+        }
+        .teacher-slot-item span { /* 新增：用來包裝小時文本，方便 CSS 選擇 */
+            margin-right: 5px;
+        }
+        .teacher-slot-item select[name="teacherSlotClassroom"] {
+            width: auto; /* 讓下拉選單根據內容調整寬度 */
+            padding: 3px 5px;
+            font-size: 0.8em;
+            height: auto;
+            min-width: 70px;
+            display: none; /* 預設隱藏，只在勾選小時後顯示 */
+            transition: opacity 0.2s ease-in-out;
+        }
+        /* 針對已勾選的小時核取方塊，顯示其後的教室選單 */
+        .teacher-slot-item input[name="teacherSlotTime"]:checked ~ select[name="teacherSlotClassroom"] {
+            display: inline-block;
+            opacity: 1;
+        }
+
+
+        /* 按鈕樣式 */
+        button {
+            padding: 10px 18px;
+            font-size: 1em;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            height: 42px; /* 與輸入框對齊 */
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:active {
+            transform: translateY(1px);
+        }
+
+        /* 列表區域樣式 */
+        .list-area {
+            margin-top: 15px;
+        }
+        .list-area h4 {
+            margin-bottom: 10px;
+            color: #495057;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        /* 待排課程列表兩欄顯示 */
+        #request-list {
+            display: grid;
+            grid-template-columns: 1fr; /* 預設單欄 */
+            gap: 6px; /* 列表項之間的間距 */
+        }
+        @media (min-width: 768px) { /* 當螢幕寬度大於等於 768px 時，啟用兩欄 */
+            #request-list {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        li {
+            background: #e9ecef;
+            padding: 12px 15px;
+            border-radius: 5px;
+            /* margin-bottom: 6px; 不再需要，因為 gap 已經處理 */
+            border-left: 5px solid #007bff;
+            font-size: 0.95em;
+            display: flex; /* Allow content and button to be on one line */
+            justify-content: space-between; /* Push button to the right */
+            align-items: center; /* Vertically align items */
+        }
+        li .action-buttons {
+            display: flex;
+            gap: 8px; /* 間隔 */
+        }
+        li .edit-btn {
+            background-color: #ffc107; /* 黃色 */
+            color: #212121;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background-color 0.2s;
+            height: auto;
+        }
+        li .edit-btn:hover {
+            background-color: #e0a800;
+        }
+        li .delete-btn {
+            background-color: #dc3545; /* Red for delete */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background-color 0.2s;
+            height: auto; /* Override default button height */
+        }
+        li .delete-btn:hover {
+            background-color: #c82333;
+        }
+
+        /* 新增：未排到課程的學生列表項的樣式 */
+        li.not-scheduled {
+            background-color: #fff3cd; /* 淡黃色 */
+            border-color: #ffc107; /* 黃色邊框 */
+        }
+
+        /* 主要操作按鈕 */
+        .main-action {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+        }
+        .main-action button {
+            padding: 15px 40px;
+            font-size: 1.25em;
+            background-color: #28a745;
+            height: auto;
+        }
+        .main-action button:hover {
+            background-color: #218838;
+        }
+        /* 結果顯示區 */
+        #schedule-result {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            min-height: 50px;
+            font-family: sans-serif;
+            overflow-x: auto; /* 允許橫向滾動 */
+        }
+
+        /* 課表表格樣式 */
+        .schedule-table-container {
+            margin-bottom: 30px; /* 每個課表之間的間距 */
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            background-color: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .schedule-table-container h3 {
+            color: #005f73;
+            margin-top: 0;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #dee2e6;
+            font-size: 1.5em;
+            text-align: center;
+        }
+
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em; /* 調整字體大小以適應更多內容 */
+            min-width: 600px; /* 確保表格不會太窄 */
+        }
+        .schedule-table th, .schedule-table td {
+            border: 1px solid #dee2e6;
+            padding: 8px; /* 調整內邊距 */
+            text-align: center; /* 內容置中 */
+            vertical-align: top; /* 頂部對齊 */
+            min-width: 80px; /* 確保每個單元格有最小寬度 */
+            height: 60px; /* 固定行高 */
+        }
+        .schedule-table th {
+            background-color: #e9ecef;
+            color: #495057;
+            font-weight: bold;
+        }
+        .schedule-table td {
+            background-color: #ffffff;
+        }
+        .schedule-table tr:nth-child(even) td {
+            background-color: #fbfbfb; /* 淺色條紋 */
+        }
+        .schedule-table tr:hover td {
+            background-color: #e2f0ff;
+        }
+        /* 調整後的表頭和行頭樣式 */
+        .schedule-table .time-header-col { /* 時間作為行頭 */
+            background-color: #dbe9f7; 
+            font-weight: bold;
+            color: #005f73;
+            text-align: left; 
+            padding-left: 15px;
+            min-width: 80px; 
+        }
+        .schedule-table .day-header-col { /* 星期作為行頭 */
+            background-color: #dbe9f7; 
+            font-weight: bold;
+            color: #005f73;
+            text-align: left; 
+            padding-left: 15px;
+            min-width: 80px; 
+        }
+        .schedule-table .day-header-row { /* 星期作為列頭 */
+            background-color: #e9ecef;
+            color: #495057;
+        }
+        .schedule-table .classroom-header-row { /* 教室作為列頭 (for day view) */
+            background-color: #e9ecef;
+            color: #495057;
+        }
+        .schedule-table .class-info {
+            font-size: 0.9em;
+            line-height: 1.3;
+            color: #333;
+        }
+        .schedule-table .class-info .student-name {
+            font-weight: bold;
+            color: #007bff;
+            font-size: 1.2em; /* 放大學生姓名 */
+        }
+        .schedule-table .class-info .teacher-name {
+            color: #28a745;
+            font-size: 1.2em; /* 放大老師姓名 */
+        }
+        .schedule-table .class-info .course-name {
+            font-style: italic;
+            color: #6c757d;
+            font-size: 1.2em; /* 放大課程名稱 */
+        }
+        .schedule-table .class-info.available-slot {
+            font-style: italic;
+            color: #6c757d;
+            font-weight: normal; /* "老師 尚可預約"不需要加粗 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%; /* 確保文本在單元格內垂直居中 */
+        }
+        .no-results {
+            color: #6c757d;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* CSV 匯入/匯出區塊 */
+        .io-section {
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping for smaller screens */
+            gap: 15px; /* Adjust gap for better spacing */
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            align-items: center;
+        }
+        .io-section div { /* For file input + button group */
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-grow: 1; /* Allow groups to grow */
+            min-width: 280px; /* Ensure minimum width for groups */
+        }
+        .io-section label {
+            flex-shrink: 0;
+            margin-bottom: 0;
+            font-weight: bold;
+            color: #005f73;
+        }
+        .io-section input[type="file"] {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+        }
+        .io-section button {
+            flex-shrink: 0;
+            height: auto;
+            padding: 10px 15px;
+        }
+        .export-group {
+            border-left: 1px solid #dee2e6; /* Separator for export buttons */
+            padding-left: 15px;
+            margin-left: 15px;
+        }
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .io-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .io-section div {
+                flex-direction: column;
+                align-items: stretch;
+                min-width: unset;
+            }
+            .io-section label {
+                margin-bottom: 5px;
+            }
+            .export-group {
+                border-left: none;
+                border-top: 1px solid #dee2e6;
+                padding-left: 0;
+                margin-left: 0;
+                padding-top: 15px;
+            }
+        }
+
+        /* 課表顯示模式切換按鈕 */
+        .schedule-mode-buttons {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-start;
+        }
+        .schedule-mode-buttons button {
+            background-color: #6c757d;
+            color: white;
+            padding: 8px 15px;
+            font-size: 0.9em;
+            height: auto;
+        }
+        .schedule-mode-buttons button.active {
+            background-color: #007bff;
+            font-weight: bold;
+        }
+    </style>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h1>排課程式輸入介面</h1>
+
+        <div class="section">
+            <h2>1. 新增老師</h2>
+            <form id="teacher-form">
+                <div>
+                    <label for="teacher-name">老師姓名</label>
+                    <input type="text" id="teacher-name" placeholder="老師姓名" required>
+                </div>
+                <div>
+                    <label for="teacher-courses">可教課程 (按住 Ctrl/Cmd 可多選)</label>
+                    <select id="teacher-courses" multiple required>
+                        <option value="語言治療">語言治療</option>
+                        <option value="口吃">口吃</option>
+                    </select>
+                </div>
+                <div style="grid-column: span 2;">
+                    <label>可上課時段及指定教室 (請勾選星期，再勾選小時，並為每個時段選擇教室)</label>
+                    <div id="teacher-slots-selection-area" class="slot-selection-area">
+                        <div id="teacher-day-selector" class="day-selector-group">
+                            </div>
+                        <div id="teacher-hour-groups" class="hour-group-container">
+                            </div>
+                    </div>
+                </div>
+                <button type="submit" id="add-teacher-button">新增/更新老師</button>
+            </form>
+            <div class="list-area">
+                <h4>已新增老師列表：</h4>
+                <ul id="teacher-list"></ul>
+            </div>
+            <div class="io-section">
+                <div>
+                    <label for="import-teachers-file">匯入老師資料 (CSV):</label>
+                    <input type="file" id="import-teachers-file" accept=".csv">
+                    <button id="import-teachers-button">匯入老師</button>
+                </div>
+                <div class="export-group">
+                    <button id="export-teachers-button">匯出老師資料</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>2. 新增學生上課需求</h2>
+            <form id="request-form">
+                <div>
+                    <label for="student-name">學生姓名</labeL>
+                    <input type="text" id="student-name" placeholder="學生姓名" required>
+                </div>
+                <div>
+                    <label for="course-name">想上的課程</label>
+                    <select id="course-name" required>
+                        <option value="" disabled selected>請選擇課程</option>
+                        <option value="語言治療">語言治療</option>
+                        <option value="口吃">口吃</option>
+                    </select>
+                </div>
+                <div style="grid-column: span 2;">
+                    <label>希望時段 (請勾選星期，再勾選小時)</label>
+                    <div id="student-slots-selection-area" class="slot-selection-area">
+                        <div id="student-day-selector" class="day-selector-group">
+                            </div>
+                        <div id="student-hour-groups" class="hour-group-container">
+                            </div>
+                    </div>
+                </div>
+                <div>
+                    <label for="assign-teacher">指定老師</label>
+                    <select id="assign-teacher">
+                        <option value="">無指定老師</option>
+                    </select>
+                </div>
+                <button type="submit" id="add-request-button">新增需求</button>
+                <button type="button" id="cancel-edit-request" style="background-color: #6c757d; display: none;">取消編輯</button>
+            </form>
+            <div class="list-area">
+                <h4>待排課程列表：</h4>
+                <ul id="request-list"></ul>
+            </div>
+            <div class="io-section">
+                <div>
+                    <label for="import-requests-file">匯入學生需求 (CSV):</label>
+                    <input type="file" id="import-requests-file" accept=".csv">
+                    <button id="import-requests-button">匯入需求</button>
+                </div>
+                <div class="export-group">
+                    <button id="export-requests-button">匯出學生需求</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-action">
+            <button id="generate-schedule">產生課表！</button>
+        </div>
+
+        <div class="section">
+            <h2>課表結果預覽</h2>
+            <div class="schedule-mode-buttons">
+                <button id="mode-classroom" class="active">按教室分類</button>
+                <button id="mode-day">按星期分類</button>
+            </div>
+            <div id="schedule-result">點擊「產生課表！」按鈕後，課表將會顯示在這裡。</div>
+            <div class="io-section" style="margin-top: 15px; padding: 15px;">
+                <button id="export-schedule-button" style="background-color: #17a2b8; width: 49%;">匯出排課結果 (CSV)</button>
+                <button id="export-schedule-image-button" style="background-color: #5cb85c; width: 49%;">匯出課表為圖片 (PNG)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- 資料儲存陣列 ---
+            let teachers = [];
+            const classrooms = [
+                { id: 'R1', name: '紅', capacity: 1 },
+                { id: 'R2', name: '綠', capacity: 1 },
+                { id: 'R3', name: '黃', capacity: 1 },
+                { id: 'R4', name: '藍', capacity: 1 }
+            ];
+            let requests = [];
+            let simulatedSchedule = []; // 新增：儲存排課結果，以便匯出
+            let teacherIdCounter = 1;
+            let requestIdCounter = 1;
+            
+            // 新增：用於追蹤被排課的時段-教室組合
+            let occupiedTimeClassroomSlots = new Set(); 
+
+            // 新增：追蹤目前正在編輯的學生需求ID
+            let editingRequestId = null;
+
+            let currentScheduleViewMode = 'classroom'; // 'classroom' or 'day'
+
+            // --- 所有可能的時段定義 ---
+            const allPossibleSlotsGrouped = {};
+            const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const hours = Array.from({ length: 20 - 9 + 1 }, (_, i) => `${9 + i}點`);
+
+            days.forEach(day => {
+                allPossibleSlotsGrouped[day] = [];
+                hours.forEach(hour => {
+                    allPossibleSlotsGrouped[day].push(`${day}-${hour}`);
+                });
+            });
+
+            // --- 新增：取得已被其他老師佔用的時段-教室組合 ---
+            function getOccupiedSlots(excludeTeacherId = null) {
+                const occupied = new Set();
+                teachers.forEach(t => {
+                    if (t.id !== excludeTeacherId) { // 如果是編輯模式，排除自身時段
+                        t.availableSlots.forEach(slotWithClassroom => {
+                            occupied.add(slotWithClassroom); // 'Day-Hour-ClassroomName'
+                        });
+                    }
+                });
+                return occupied;
+            }
+
+            // --- DOM 元素選擇 ---
+            const teacherForm = document.getElementById('teacher-form');
+            const teacherNameInput = document.getElementById('teacher-name'); // 新增：老師姓名輸入框
+            const teacherCoursesSelect = document.getElementById('teacher-courses'); // 新增：老師可教課程選擇框
+            const requestForm = document.getElementById('request-form');
+            const addRequestButton = document.getElementById('add-request-button'); // 新增：學生需求提交按鈕
+            const cancelEditRequestButton = document.getElementById('cancel-edit-request'); // 新增：取消編輯按鈕
+            
+            const teacherList = document.getElementById('teacher-list');
+            const requestList = document.getElementById('request-list');
+            
+            const teacherDaySelectorDiv = document.getElementById('teacher-day-selector');
+            const teacherHourGroupsContainer = document.getElementById('teacher-hour-groups');
+
+            const studentNameInput = document.getElementById('student-name');
+            const courseNameSelect = document.getElementById('course-name');
+            const studentDaySelectorDiv = document.getElementById('student-day-selector');
+            const studentHourGroupsContainer = document.getElementById('student-hour-groups');
+
+            const assignTeacherSelect = document.getElementById('assign-teacher');
+            const generateButton = document.getElementById('generate-schedule');
+            const resultDiv = document.getElementById('schedule-result');
+
+            // Import elements
+            const importTeachersFile = document.getElementById('import-teachers-file');
+            const importTeachersButton = document.getElementById('import-teachers-button');
+            const importRequestsFile = document.getElementById('import-requests-file');
+            const importRequestsButton = document.getElementById('import-requests-button');
+
+            // Export elements
+            const exportTeachersButton = document.getElementById('export-teachers-button');
+            const exportRequestsButton = document.getElementById('export-requests-button');
+            const exportScheduleButton = document.getElementById('export-schedule-button');
+            // 新增匯出圖片按鈕
+            const exportScheduleImageButton = document.getElementById('export-schedule-image-button');
+
+            // Schedule View Mode Buttons
+            const modeClassroomButton = document.getElementById('mode-classroom');
+            const modeDayButton = document.getElementById('mode-day');
+
+
+            // --- LocalStorage 存儲與載入功能 ---
+            function saveTeachers() {
+                localStorage.setItem('teachersData', JSON.stringify(teachers));
+            }
+
+            function loadTeachers() {
+                const storedTeachers = localStorage.getItem('teachersData');
+                if (storedTeachers) {
+                    teachers = JSON.parse(storedTeachers);
+                    // 確保 teacherIdCounter 從現有老師中最大的 ID 繼續
+                    const maxId = teachers.reduce((max, t) => {
+                        const idNum = parseInt(t.id.replace('T', ''));
+                        return idNum > max ? idNum : max;
+                    }, 0);
+                    teacherIdCounter = maxId + 1;
+                }
+            }
+
+            function saveRequests() {
+                localStorage.setItem('requestsData', JSON.stringify(requests));
+            }
+
+            function loadRequests() {
+                const storedRequests = localStorage.getItem('requestsData');
+                if (storedRequests) {
+                    requests = JSON.parse(storedRequests);
+                    // 確保 requestIdCounter 從現有需求中最大的 ID 繼續
+                    const maxId = requests.reduce((max, r) => {
+                        const idNum = parseInt(r.id.replace('Req', ''));
+                        return idNum > max ? idNum : max;
+                    }, 0);
+                    requestIdCounter = maxId + 1;
+                }
+            }
+
+
+            // --- 輔助函式：生成學生時段核取方塊 (不含教室選擇) ---
+            function setupStudentSlotCheckboxes(daySelectorContainer, hourGroupsContainer, namePrefix, currentSelection = []) {
+                daySelectorContainer.innerHTML = '';
+                hourGroupsContainer.innerHTML = '';
+
+                days.forEach(day => {
+                    const label = document.createElement('label');
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.name = `${namePrefix}Day`; 
+                    checkbox.value = day;
+                    label.appendChild(checkbox);
+                    label.appendChild(document.createTextNode(day));
+                    daySelectorContainer.appendChild(label);
+
+                    const dayHourGroup = document.createElement('div');
+                    dayHourGroup.classList.add('day-hour-group');
+                    dayHourGroup.id = `${namePrefix}-${day}-hours`; 
+                    
+                    const dayTitle = document.createElement('h5');
+                    dayTitle.textContent = day;
+                    dayHourGroup.appendChild(dayTitle);
+
+                    const checkboxListDiv = document.createElement('div');
+                    checkboxListDiv.classList.add('checkbox-list');
+
+                    allPossibleSlotsGrouped[day].forEach(slot => { // slot is 'Day-Hour' e.g. 'Mon-9點'
+                        const hourLabel = document.createElement('label');
+                        const hourCheckbox = document.createElement('input');
+                        hourCheckbox.type = 'checkbox';
+                        hourCheckbox.name = namePrefix; 
+                        hourCheckbox.value = slot; // 'Mon-9點'
+                        if (currentSelection.includes(slot)) { 
+                            hourCheckbox.checked = true;
+                            // 如果該時段被選中，則確保該天的勾選框也被選中
+                            checkbox.checked = true; 
+                        }
+                        hourLabel.appendChild(hourCheckbox);
+                        hourLabel.appendChild(document.createTextNode(slot.split('-')[1])); 
+                        checkboxListDiv.appendChild(hourLabel);
+                    });
+                    dayHourGroup.appendChild(checkboxListDiv);
+                    hourGroupsContainer.appendChild(dayHourGroup);
+
+                    checkbox.addEventListener('change', (e) => {
+                        const isChecked = e.target.checked;
+                        if (isChecked) {
+                            dayHourGroup.style.display = 'block'; 
+                            setTimeout(() => dayHourGroup.classList.add('active'), 10);
+                        } else {
+                            dayHourGroup.classList.remove('active'); 
+                            dayHourGroup.addEventListener('transitionend', function handler() {
+                                dayHourGroup.style.display = 'none';
+                                dayHourGroup.removeEventListener('transitionend', handler);
+                            });
+                            dayHourGroup.querySelectorAll('input[type="checkbox"]').forEach(hourCb => hourCb.checked = false);
+                        }
+                    });
+
+                    // 初始加載時，如果該天有任何時段被選中，就顯示該天的時段組
+                    if (currentSelection.some(slot => slot.startsWith(day + '-'))) {
+                        checkbox.checked = true; 
+                        dayHourGroup.style.display = 'block';
+                        setTimeout(() => dayHourGroup.classList.add('active'), 10);
+                    }
+                });
+            }
+
+            // --- 輔助函式：生成老師時段核取方塊 (包含教室選擇) ---
+            function setupTeacherSlotCheckboxes(daySelectorContainer, hourGroupsContainer, currentSelection = [], teacherIdBeingEdited = null) {
+                daySelectorContainer.innerHTML = '';
+                hourGroupsContainer.innerHTML = '';
+
+                const occupiedSlots = getOccupiedSlots(teacherIdBeingEdited); // 取得已被其他老師佔用的時段-教室組合
+
+                days.forEach(day => {
+                    const label = document.createElement('label');
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.name = `teacherSlotDay`; 
+                    checkbox.value = day;
+                    label.appendChild(checkbox);
+                    label.appendChild(document.createTextNode(day));
+                    daySelectorContainer.appendChild(label);
+
+                    const dayHourGroup = document.createElement('div');
+                    dayHourGroup.classList.add('day-hour-group');
+                    dayHourGroup.id = `teacherSlot-${day}-hours`; 
+                    
+                    const dayTitle = document.createElement('h5');
+                    dayTitle.textContent = day;
+                    dayHourGroup.appendChild(dayTitle);
+
+                    const checkboxListDiv = document.createElement('div');
+                    checkboxListDiv.classList.add('checkbox-list');
+
+                    allPossibleSlotsGrouped[day].forEach(slot => { // slot is 'Day-Hour' e.g. 'Mon-9點'
+                        const slotItemDiv = document.createElement('div');
+                        slotItemDiv.classList.add('teacher-slot-item');
+
+                        const hourCheckbox = document.createElement('input');
+                        hourCheckbox.type = 'checkbox';
+                        hourCheckbox.name = `teacherSlotTime`; 
+                        hourCheckbox.value = slot; // 'Mon-9點'
+                        hourCheckbox.disabled = true;
+
+                        const hourTextSpan = document.createElement('span');
+                        hourTextSpan.textContent = slot.split('-')[1];
+
+                        const classroomSelect = document.createElement('select');
+                        classroomSelect.name = `teacherSlotClassroom`; 
+                        classroomSelect.disabled = true;
+                        classroomSelect.style.display = 'none';
+                        classroomSelect.innerHTML = `<option value="">選擇教室</option>`; // Always include "選擇教室" as first option
+
+                        classrooms.forEach(room => {
+                            const option = document.createElement('option');
+                            option.value = room.name;
+                            option.textContent = room.name;
+
+                            // 檢查此時段-教室組合是否已被佔用
+                            const potentialOccupiedSlot = `${slot}-${room.name}`; // 'Day-Hour-ClassroomName'
+                            if (occupiedSlots.has(potentialOccupiedSlot)) {
+                                option.disabled = true; // 禁用此選項
+                                option.textContent += ' (已被預約)'; // 增加視覺提示
+                            }
+                            classroomSelect.appendChild(option);
+                        });
+
+                        // 檢查是否有選中的時段和教室 (用於編輯現有老師)
+                        const matchingSlotWithClassroom = currentSelection.find(s => s.startsWith(`${slot}-`));
+                        if (matchingSlotWithClassroom) {
+                            hourCheckbox.checked = true;
+                            hourCheckbox.disabled = false;
+                            classroomSelect.disabled = false;
+                            classroomSelect.style.display = 'inline-block';
+                            const parts = matchingSlotWithClassroom.split('-');
+                            if (parts.length === 3) {
+                                // 設定選中的值。即使選項被禁用，它仍然可以被設為選定狀態。
+                                classroomSelect.value = parts[2];
+                            }
+                        }
+
+                        // 時段核取方塊變動時，啟用/禁用/顯示/隱藏教室下拉選單
+                        hourCheckbox.addEventListener('change', () => {
+                            if (!hourCheckbox.checked) {
+                                classroomSelect.value = '';
+                                classroomSelect.disabled = true;
+                                classroomSelect.style.display = 'none';
+                                const anyHourCheckedForDay = dayHourGroup.querySelectorAll('input[name="teacherSlotTime"]:checked').length > 0;
+                                const dayCheckbox = daySelectorContainer.querySelector(`input[name="teacherSlotDay"][value="${day}"]`);
+                                if (dayCheckbox && !anyHourCheckedForDay) {
+                                    dayCheckbox.checked = false;
+                                }
+                            } else {
+                                classroomSelect.disabled = false;
+                                classroomSelect.style.display = 'inline-block';
+                                // 如果勾選，但還沒有選教室，或選中的教室已禁用，則預設選第一個可用教室
+                                if (!classroomSelect.value || classroomSelect.querySelector(`option[value="${classroomSelect.value}"]`)?.disabled) {
+                                    // 尋找第一個非禁用且非空值的選項
+                                    const firstAvailableOption = Array.from(classroomSelect.options).find(opt => !opt.disabled && opt.value !== "");
+                                    if (firstAvailableOption) {
+                                        classroomSelect.value = firstAvailableOption.value;
+                                    } else {
+                                        classroomSelect.value = ""; // 如果沒有可用選項，則清空
+                                    }
+                                }
+
+                                const dayCheckbox = daySelectorContainer.querySelector(`input[name="teacherSlotDay"][value="${day}"]`);
+                                if (dayCheckbox && !dayCheckbox.checked) {
+                                    dayCheckbox.checked = true;
+                                    dayCheckbox.dispatchEvent(new Event('change'));
+                                }
+                            }
+                        });
+
+                        // 組合元素
+                        slotItemDiv.appendChild(hourCheckbox);
+                        slotItemDiv.appendChild(hourTextSpan);
+                        slotItemDiv.appendChild(classroomSelect);
+                        checkboxListDiv.appendChild(slotItemDiv);
+                    });
+                    dayHourGroup.appendChild(checkboxListDiv);
+                    hourGroupsContainer.appendChild(dayHourGroup);
+
+                    // 星期總勾選變動時，處理該星期的所有時段核取方塊和下拉選單
+                    checkbox.addEventListener('change', (e) => {
+                        const isChecked = e.target.checked;
+                        if (isChecked) {
+                            dayHourGroup.style.display = 'block'; 
+                            setTimeout(() => dayHourGroup.classList.add('active'), 10);
+                            dayHourGroup.querySelectorAll('.teacher-slot-item').forEach(slotItemDiv => {
+                                const hourCb = slotItemDiv.querySelector('input[name="teacherSlotTime"]');
+                                const classroomSelect = slotItemDiv.querySelector('select[name="teacherSlotClassroom"]');
+                                
+                                hourCb.disabled = false;
+                                
+                                if (hourCb.checked) {
+                                    classroomSelect.disabled = false;
+                                    classroomSelect.style.display = 'inline-block';
+                                    // 確保顯示時，如果當前選中的選項已禁用，則重新選擇一個可用的
+                                    if (!classroomSelect.value || classroomSelect.querySelector(`option[value="${classroomSelect.value}"]`)?.disabled) {
+                                        const firstAvailableOption = Array.from(classroomSelect.options).find(opt => !opt.disabled && opt.value !== "");
+                                        if (firstAvailableOption) {
+                                            classroomSelect.value = firstAvailableOption.value;
+                                        } else {
+                                            classroomSelect.value = "";
+                                        }
+                                    }
+                                } else {
+                                    classroomSelect.disabled = true;
+                                    classroomSelect.style.display = 'none';
+                                }
+                            });
+                        } else {
+                            dayHourGroup.classList.remove('active'); 
+                            dayHourGroup.addEventListener('transitionend', function handler() {
+                                dayHourGroup.style.display = 'none';
+                                dayHourGroup.removeEventListener('transitionend', handler);
+                            });
+                            dayHourGroup.querySelectorAll('.teacher-slot-item').forEach(slotItemDiv => {
+                                const hourCb = slotItemDiv.querySelector('input[name="teacherSlotTime"]');
+                                const classroomSelect = slotItemDiv.querySelector('select[name="teacherSlotClassroom"]');
+                                hourCb.checked = false;
+                                hourCb.disabled = true;
+                                classroomSelect.value = '';
+                                classroomSelect.disabled = true;
+                                classroomSelect.style.display = 'none';
+                            });
+                        }
+                    });
+
+                    // 初始加載時，如果該天有任何時段被選中，就顯示該天的時段組
+                    if (currentSelection.some(s => s.startsWith(day + '-'))) {
+                        checkbox.checked = true; 
+                        dayHourGroup.style.display = 'block';
+                        setTimeout(() => dayHourGroup.classList.add('active'), 10);
+                    }
+                });
+            }
+
+            // 首次加載時設置核取方塊
+            loadTeachers();
+            loadRequests();
+
+            // 老師時段選擇器，初次載入不排除任何老師ID
+            setupTeacherSlotCheckboxes(teacherDaySelectorDiv, teacherHourGroupsContainer); 
+            setupStudentSlotCheckboxes(studentDaySelectorDiv, studentHourGroupsContainer, 'studentPreferredSlot');
+
+            // --- 新增：老師姓名輸入框事件監聽器 (用於自動回勾時段) ---
+            teacherNameInput.addEventListener('input', () => {
+                const name = teacherNameInput.value.trim();
+                const existingTeacher = teachers.find(t => t.name === name);
+                
+                // 清空當前可教課程的選取狀態
+                Array.from(teacherCoursesSelect.options).forEach(option => option.selected = false);
+
+                if (existingTeacher) {
+                    existingTeacher.canTeach.forEach(course => {
+                        const option = Array.from(teacherCoursesSelect.options).find(opt => opt.value === course);
+                        if (option) {
+                            option.selected = true;
+                        }
+                    });
+                    // 自動回勾可上課時段，並排除當前老師自身的時段
+                    setupTeacherSlotCheckboxes(teacherDaySelectorDiv, teacherHourGroupsContainer, existingTeacher.availableSlots, existingTeacher.id);
+                } else {
+                    // 如果沒有匹配的老師，清空可教課程選取和時段回勾，也不排除任何老師ID
+                    setupTeacherSlotCheckboxes(teacherDaySelectorDiv, teacherHourGroupsContainer);
+                }
+            });
+
+
+            // --- 事件監聽：新增/更新老師 ---
+            teacherForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                console.log('Teacher form submitted.'); // Debug log
+                const name = teacherNameInput.value;
+                const courses = Array.from(teacherCoursesSelect.selectedOptions).map(option => option.value);
+
+                const selectedSlotTimes = document.querySelectorAll('#teacher-hour-groups input[name="teacherSlotTime"]:checked');
+                const slotsWithClassrooms = [];
+
+                let missingClassroom = false; // Flag to check if any checked slot is missing a classroom
+                selectedSlotTimes.forEach(checkbox => {
+                    const slotTime = checkbox.value; // e.g., 'Mon-9點'
+                    // 因為我們改了結構，要找到對應的 select，它不再是 nextElementSibling.nextElementSibling
+                    // 現在它是 checkbox 的父 div 裡面的 select
+                    const classroomSelect = checkbox.closest('.teacher-slot-item').querySelector('select[name="teacherSlotClassroom"]');
+                    
+                    if (classroomSelect && classroomSelect.tagName === 'SELECT') {
+                        const classroomName = classroomSelect.value;
+                        if (!classroomName || classroomSelect.querySelector(`option[value="${classroomName}"]`)?.disabled) {
+                            alert(`請為時段 ${slotTime.split('-')[1]} 選擇指定教室！\n(請勿選擇已被預約的教室)`);
+                            missingClassroom = true; // Set flag
+                            return; // Stop processing this iteration, but forEach continues
+                        }
+                        slotsWithClassrooms.push(`${slotTime}-${classroomName}`); // Store as 'Day-Hour-Classroom'
+                    }
+                });
+
+                if (missingClassroom) { // Check flag after forEach completes
+                    console.log('Submission halted: Missing classroom for a checked slot or selected an occupied classroom.');
+                    return; // Prevent form submission
+                }
+
+                if (courses.length === 0) {
+                    alert('請至少為老師選擇一門可教課程！');
+                    console.log('Submission halted: No courses selected.');
+                    return;
+                }
+                if (slotsWithClassrooms.length === 0) {
+                    alert('請至少為老師選擇一個可上課時段及指定教室！'); // 使用新的、更明確的錯誤訊息
+                    console.log('Submission halted: No slots selected or no classrooms for selected slots.');
+                    return;
+                }
+
+                const existingTeacher = teachers.find(t => t.name === name);
+
+                if (existingTeacher) {
+                    // 更新現有老師資料
+                    existingTeacher.canTeach = courses;
+                    existingTeacher.availableSlots = slotsWithClassrooms; // 更新為帶教室的時段
+                    alert('老師資料已更新！');
+                } else {
+                    // 新增老師
+                    addTeacher({
+                        name: name,
+                        canTeach: courses,
+                        availableSlots: slotsWithClassrooms // 新增為帶教室的時段
+                    });
+                }
+                
+                teacherForm.reset();
+                Array.from(teacherCoursesSelect.options).forEach(option => option.selected = false); // 重置課程選擇
+                setupTeacherSlotCheckboxes(teacherDaySelectorDiv, teacherHourGroupsContainer); // 重置老師時段選擇器
+                renderTeachers(); // 確保列表更新
+                saveTeachers(); // 保存老師資料
+            });
+
+            // --- 事件監聽：新增/更新需求 ---
+            requestForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const studentName = studentNameInput.value;
+                const courseName = courseNameSelect.value;
+                const assignedTeacherId = assignTeacherSelect.value;
+
+                const selectedPreferredSlotCheckboxes = document.querySelectorAll('#student-hour-groups input[name="studentPreferredSlot"]:checked');
+                const preferredSlots = Array.from(selectedPreferredSlotCheckboxes).map(checkbox => checkbox.value);
+
+                if (!courseName) {
+                    alert('請選擇一門課程！');
+                    return;
+                }
+                if (preferredSlots.length === 0) {
+                    alert('請至少為學生選擇一個希望時段！');
+                    return;
+                }
+
+                if (editingRequestId) {
+                    // 更新現有需求
+                    const reqIndex = requests.findIndex(req => req.id === editingRequestId);
+                    if (reqIndex !== -1) {
+                        requests[reqIndex].studentName = studentName;
+                        requests[reqIndex].courseName = courseName;
+                        requests[reqIndex].preferredSlots = preferredSlots;
+                        requests[reqIndex].assignedTeacherId = assignedTeacherId || null; // 如果選擇無指定老師，則為 null
+                        alert('學生需求已更新！');
+                    }
+                    editingRequestId = null; // 清除編輯狀態
+                    addRequestButton.textContent = '新增需求'; // 恢復按鈕文字
+                    cancelEditRequestButton.style.display = 'none'; // 隱藏取消按鈕
+                } else {
+                    // 新增需求
+                    addRequest({
+                        studentName: studentName,
+                        courseName: courseName,
+                        preferredSlots: preferredSlots, // 這裡已經是純粹的 Day-Hour
+                        assignedTeacherId: assignedTeacherId || null // 如果選擇無指定老師，則為 null
+                    });
+                }
+
+                requestForm.reset();
+                courseNameSelect.selectedIndex = 0; // 重置課程選擇
+                setupStudentSlotCheckboxes(studentDaySelectorDiv, studentHourGroupsContainer, 'studentPreferredSlot'); // 重置學生時段選擇器
+                assignTeacherSelect.selectedIndex = 0; // 重置老師選擇
+                saveRequests(); // 保存學生需求資料
+                renderRequests(); // 重新渲染列表以反映變更
+            });
+
+            // --- 事件監聽：取消編輯按鈕 ---
+            cancelEditRequestButton.addEventListener('click', () => {
+                editingRequestId = null; // 清除編輯狀態
+                requestForm.reset();
+                courseNameSelect.selectedIndex = 0;
+                setupStudentSlotCheckboxes(studentDaySelectorDiv, studentHourGroupsContainer, 'studentPreferredSlot');
+                assignTeacherSelect.selectedIndex = 0;
+                addRequestButton.textContent = '新增需求';
+                cancelEditRequestButton.style.display = 'none';
+            });
+
+
+            // --- 事件監聽：產生課表 ---
+            generateButton.addEventListener('click', () => {
+                if (requests.length === 0) {
+                    resultDiv.innerHTML = '<p class="no-results">請先新增至少一項學生上課需求，才能產生課表。</p>';
+                    return;
+                }
+
+                simulatedSchedule = []; // 清空之前的排課結果
+                const assignedClassroomSlotsMap = new Map(); 
+                const assignedTeacherSlotsMap = new Map();
+                occupiedTimeClassroomSlots.clear(); // 清空已佔用時段-教室列表
+
+                // 優先處理有指定老師的需求
+                const sortedRequests = [...requests].sort((a, b) => {
+                    if (a.assignedTeacherId && !b.assignedTeacherId) return -1;
+                    if (!a.assignedTeacherId && b.assignedTeacherId) return 1;
+                    return 0;
+                });
+
+                sortedRequests.forEach(req => {
+                    let assignedTeacher = null;
+                    if (req.assignedTeacherId) {
+                        assignedTeacher = teachers.find(t => t.id === req.assignedTeacherId);
+                    } else if (teachers.length > 0) {
+                        // 如果沒有指定老師，嘗試找到一個能教該課程的老師
+                        // 這裡可以加入更複雜的老師選擇邏輯，例如負載平衡或優先順序
+                        assignedTeacher = teachers.find(t => t.canTeach.includes(req.courseName));
+                    }
+
+                    if (assignedTeacher) {
+                        let assignedSlot = null; // e.g., 'Mon-9點'
+                        let assignedClassroom = null; // e.g., {id: 'R1', name: '紅'}
+
+                        for (const preferredStudentSlot of req.preferredSlots) { // 'Mon-9點'
+                            // 查找老師的可用時段，其中包含教室資訊
+                            const teacherAvailableSlotWithClassroom = assignedTeacher.availableSlots.find(
+                                teacherSlot => teacherSlot.startsWith(`${preferredStudentSlot}-`)
+                            );
+
+                            if (teacherAvailableSlotWithClassroom) {
+                                // 從老師的可用時段中解析出教室名稱
+                                const [, , classroomName] = teacherAvailableSlotWithClassroom.split('-');
+                                const room = classrooms.find(r => r.name === classroomName);
+
+                                if (room) {
+                                    const slotClassroomKey = `${preferredStudentSlot}-${room.id}`;
+                                    const slotTeacherKey = `${preferredStudentSlot}-${assignedTeacher.id}`;
+
+                                    if (!assignedClassroomSlotsMap.has(slotClassroomKey) && !assignedTeacherSlotsMap.has(slotTeacherKey)) {
+                                        assignedSlot = preferredStudentSlot;
+                                        assignedClassroom = room;
+                                        assignedClassroomSlotsMap.set(slotClassroomKey, true);
+                                        assignedTeacherSlotsMap.set(slotTeacherKey, true);
+                                        occupiedTimeClassroomSlots.add(slotClassroomKey); // 記錄被佔用的時段-教室
+                                        break; // 找到可用教室，跳出教室迴圈
+                                    }
+                                }
+                            }
+                        }
+
+                        if (assignedSlot && assignedClassroom) {
+                            simulatedSchedule.push({
+                                requestId: req.id,
+                                studentName: req.studentName,
+                                teacherName: assignedTeacher.name,
+                                courseName: req.courseName,
+                                slot: assignedSlot,
+                                classroomName: assignedClassroom.name
+                            });
+                        } else {
+                            console.warn(`學生 ${req.studentName} (ID: ${req.id}) 未能排課：找不到合適的時段或教室。`);
+                            // 可以將未排課的需求單獨列出
+                        }
+                    } else {
+                        console.warn(`學生 ${req.studentName} (ID: ${req.id}) 未能排課：找不到可教 ${req.courseName} 的老師。`);
+                    }
+                });
+
+                // 根據當前選擇的模式渲染課表
+                renderSchedule(currentScheduleViewMode);
+
+                renderRequests(); // 重新渲染學生需求列表，以更新排課狀態
+            });
+
+            // --- 新增老師的輔助函數 ---
+            function addTeacher(teacherData) {
+                // 不再在此處檢查重複，改由表單提交處處理新增或更新邏輯
+                const newTeacher = {
+                    id: `T${teacherIdCounter++}`,
+                    name: teacherData.name,
+                    canTeach: teacherData.canTeach,
+                    availableSlots: teacherData.availableSlots
+                };
+                teachers.push(newTeacher);
+                alert('老師已新增！');
+                renderTeachers(); // 確保列表更新
+            }
+
+            // --- 新增學生需求的輔助函數 ---
+            function addRequest(requestData) {
+                // 檢查是否已存在同名學生和課程的需求
+                if (requests.some(r => r.studentName === requestData.studentName && r.courseName === requestData.courseName)) {
+                    alert(`學生「${requestData.studentName}」已有「${requestData.courseName}」課程的需求，請勿重複新增。`);
+                    return;
+                }
+
+                const newRequest = {
+                    id: `Req${requestIdCounter++}`,
+                    studentName: requestData.studentName,
+                    courseName: requestData.courseName,
+                    preferredSlots: requestData.preferredSlots, // 修正：從 requestData 中獲取 preferredSlots
+                    assignedTeacherId: requestData.assignedTeacherId
+                };
+                requests.push(newRequest);
+                renderRequests();
+            }
+
+            // --- 渲染函式 (更新畫面) ---
+            function renderTeachers() {
+                teacherList.innerHTML = '';
+                assignTeacherSelect.innerHTML = '<option value="">無指定老師</option>'; // Always add default option first
+                teachers.forEach(t => {
+                    const li = document.createElement('li');
+                    // 格式化顯示可教時段，現在包含教室資訊
+                    const formattedSlots = t.availableSlots.map(slotWithRoom => {
+                        const [day, hour, room] = slotWithRoom.split('-');
+                        return `${day}-${hour} (${room}教室)`;
+                    }).join(', ');
+
+                    li.innerHTML = `
+                        <span>[${t.id}] ${t.name} (可教: ${t.canTeach.join(', ') || '未指定'}, 可用時段: ${formattedSlots || '未指定'})</span>
+                        <button class="delete-btn" data-id="${t.id}" data-type="teacher">刪除</button>
+                    `;
+                    teacherList.appendChild(li);
+
+                    const option = document.createElement('option');
+                    option.value = t.id;
+                    option.textContent = t.name;
+                    assignTeacherSelect.appendChild(option);
+                });
+                // 為所有新增的刪除按鈕新增事件監聽器
+                document.querySelectorAll('#teacher-list .delete-btn').forEach(button => {
+                    button.addEventListener('click', handleDeleteItem);
+                });
+            }
+
+            function renderRequests() {
+                requestList.innerHTML = '';
+                const scheduledRequestIds = new Set(simulatedSchedule.map(item => item.requestId));
+
+                requests.forEach(r => {
+                    const li = document.createElement('li');
+                    const teacherName = r.assignedTeacherId ? teachers.find(t => t.id === r.assignedTeacherId)?.name : '無';
+                    li.innerHTML = `
+                        <span>[${r.id}] ${r.studentName} - ${r.courseName} (希望時段: ${r.preferredSlots.join(', ')}, 指定老師: ${teacherName})</span>
+                        <div class="action-buttons">
+                            <button class="edit-btn" data-id="${r.id}" data-type="request">修改</button>
+                            <button class="delete-btn" data-id="${r.id}" data-type="request">刪除</button>
+                        </div>
+                    `;
+                    
+                    // 檢查學生是否未排到課程，並添加 class
+                    if (!scheduledRequestIds.has(r.id)) {
+                        li.classList.add('not-scheduled');
+                    }
+
+                    requestList.appendChild(li);
+                });
+                // 為所有新增的刪除按鈕新增事件監聽器
+                document.querySelectorAll('#request-list .delete-btn').forEach(button => {
+                    button.addEventListener('click', handleDeleteItem);
+                });
+                // 為所有新增的修改按鈕新增事件監聽器
+                document.querySelectorAll('#request-list .edit-btn').forEach(button => {
+                    button.addEventListener('click', handleEditRequest);
+                });
+            }
+
+            // --- 處理修改學生需求 ---
+            function handleEditRequest(event) {
+                const requestId = event.target.dataset.id;
+                const requestToEdit = requests.find(r => r.id === requestId);
+
+                if (requestToEdit) {
+                    editingRequestId = requestId; // 設定編輯中的請求ID
+                    studentNameInput.value = requestToEdit.studentName;
+                    courseNameSelect.value = requestToEdit.courseName;
+                    
+                    // 重新設置希望時段的核取方塊
+                    setupStudentSlotCheckboxes(studentDaySelectorDiv, studentHourGroupsContainer, 'studentPreferredSlot', requestToEdit.preferredSlots);
+
+                    assignTeacherSelect.value = requestToEdit.assignedTeacherId || ''; // 設置指定老師，如果沒有則選擇「無指定老師」
+
+                    // 改變按鈕文字和顯示取消按鈕
+                    addRequestButton.textContent = '更新需求';
+                    cancelEditRequestButton.style.display = 'inline-block';
+                }
+            }
+
+
+            // --- 刪除列表項的處理函式 ---
+            function handleDeleteItem(event) {
+                const button = event.target;
+                const idToDelete = button.dataset.id;
+                const type = button.dataset.type;
+
+                if (confirm(`確定要刪除這個${type === 'teacher' ? '老師' : '學生需求'}嗎？`)) {
+                    if (type === 'teacher') {
+                        teachers = teachers.filter(t => t.id !== idToDelete);
+                        renderTeachers(); // 重新渲染老師列表
+                        renderRequests(); // 老師列表變動後，學生需求列表的指定老師可能需要更新
+                        saveTeachers(); // 保存老師資料
+                    } else if (type === 'request') {
+                        requests = requests.filter(r => r.id !== idToDelete);
+                        renderRequests(); // 重新渲染學生需求列表
+                        saveRequests(); // 保存學生需求資料
+                    }
+                    alert('項目已刪除！');
+                }
+            }
+
+            // --- 主要渲染課表邏輯，根據模式切換 ---
+            function renderSchedule(mode) {
+                resultDiv.innerHTML = ''; // Clear previous schedules
+
+                if (simulatedSchedule.length === 0 && requests.length > 0) {
+                    resultDiv.innerHTML = '<p class="no-results">所有學生需求都未能排課。</p>';
+                    return;
+                } else if (simulatedSchedule.length === 0) {
+                    resultDiv.innerHTML = '<p class="no-results">沒有可排的課程。</p>';
+                    return;
+                }
+
+                if (mode === 'classroom') {
+                    classrooms.forEach(room => {
+                        renderSingleClassroomTimetable(room, simulatedSchedule);
+                    });
+                } else if (mode === 'day') {
+                    days.forEach(day => {
+                        renderSingleDayTimetable(day, simulatedSchedule);
+                    });
+                }
+            }
+
+            function renderSingleClassroomTimetable(classroom, allScheduledData) {
+                const container = document.createElement('div');
+                container.classList.add('schedule-table-container');
+
+                const title = document.createElement('h3');
+                title.textContent = `${classroom.name} 教室課表`;
+                container.appendChild(title);
+
+                const table = document.createElement('table');
+                table.classList.add('schedule-table');
+
+                const classroomScheduleGrid = {};
+                days.forEach(day => {
+                    classroomScheduleGrid[day] = {};
+                    hours.forEach(hour => {
+                        classroomScheduleGrid[day][hour] = null;
+                    });
+                });
+
+                allScheduledData.forEach(item => {
+                    if (item.classroomName === classroom.name) {
+                        const [day, hour] = item.slot.split('-');
+                        classroomScheduleGrid[day][hour] = item;
+                    }
+                });
+
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                const emptyTh = document.createElement('th');
+                emptyTh.textContent = '時間 \\ 星期';
+                emptyTh.classList.add('time-header-col');
+                headerRow.appendChild(emptyTh);
+
+                days.forEach(day => {
+                    const th = document.createElement('th');
+                    th.textContent = day;
+                    th.classList.add('day-header-row');
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                const tbody = document.createElement('tbody');
+                hours.forEach(hour => {
+                    const row = document.createElement('tr');
+
+                    const timeTd = document.createElement('td');
+                    timeTd.textContent = hour;
+                    timeTd.classList.add('time-header-col');
+                    row.appendChild(timeTd);
+
+                    days.forEach(day => {
+                        const cell = document.createElement('td');
+                        const classInfo = classroomScheduleGrid[day][hour];
+                        if (classInfo) {
+                            cell.innerHTML = `
+                                <div class="class-info">
+                                    <div class="student-name">${classInfo.studentName}</div>
+                                    <div class="teacher-name">${classInfo.teacherName}</div>
+                                    <div class="course-name">${classInfo.courseName}</div>
+                                </div>
+                            `;
+                        } else {
+                            const currentSlot = `${day}-${hour}`; // e.g., 'Mon-9點'
+                            const isSlotTakenByAnotherClassroom = occupiedTimeClassroomSlots.has(`${currentSlot}-${classroom.id}`);
+
+                            let availableTeacherName = null;
+                            if (!isSlotTakenByAnotherClassroom) {
+                                // 查找在此時段和此教室有空的老師
+                                const foundTeacher = teachers.find(teacher => {
+                                    // 老師的 availableSlots 裡是 'Day-Hour-Classroom' 格式
+                                    return teacher.availableSlots.includes(`${currentSlot}-${classroom.name}`);
+                                });
+                                if (foundTeacher) {
+                                    availableTeacherName = foundTeacher.name;
+                                }
+                            }
+
+                            if (availableTeacherName) {
+                                cell.innerHTML = `
+                                    <div class="class-info available-slot">
+                                        ${availableTeacherName} 尚可預約
+                                    </div>
+                                `;
+                            } else {
+                                cell.textContent = ''; // 保持空白
+                            }
+                        }
+                        row.appendChild(cell);
+                    });
+                    tbody.appendChild(row);
+                });
+                table.appendChild(tbody);
+
+                container.appendChild(table);
+                resultDiv.appendChild(container);
+            }
+
+            function renderSingleDayTimetable(day, allScheduledData) {
+                const container = document.createElement('div');
+                container.classList.add('schedule-table-container');
+
+                const title = document.createElement('h3');
+                title.textContent = `${day} 課表`;
+                container.appendChild(title);
+
+                const table = document.createElement('table');
+                table.classList.add('schedule-table');
+
+                const dayScheduleGrid = {}; // hour -> classroom -> classInfo
+                hours.forEach(hour => {
+                    dayScheduleGrid[hour] = {};
+                    classrooms.forEach(room => {
+                        dayScheduleGrid[hour][room.name] = null;
+                    });
+                });
+
+                allScheduledData.forEach(item => {
+                    const [itemDay, itemHour] = item.slot.split('-');
+                    if (itemDay === day) {
+                        dayScheduleGrid[itemHour][item.classroomName] = item;
+                    }
+                });
+
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                const emptyTh = document.createElement('th');
+                emptyTh.textContent = '時間 \\ 教室';
+                emptyTh.classList.add('time-header-col');
+                headerRow.appendChild(emptyTh);
+
+                classrooms.forEach(room => {
+                    const th = document.createElement('th');
+                    th.textContent = `${room.name} 教室`;
+                    th.classList.add('classroom-header-row');
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                const tbody = document.createElement('tbody');
+                hours.forEach(hour => {
+                    const row = document.createElement('tr');
+
+                    const timeTd = document.createElement('td');
+                    timeTd.textContent = hour;
+                    timeTd.classList.add('time-header-col');
+                    row.appendChild(timeTd);
+
+                    classrooms.forEach(room => {
+                        const cell = document.createElement('td');
+                        const classInfo = dayScheduleGrid[hour][room.name];
+                        if (classInfo) {
+                            cell.innerHTML = `
+                                <div class="class-info">
+                                    <div class="student-name">${classInfo.studentName}</div>
+                                    <div class="teacher-name">${classInfo.teacherName}</div>
+                                    <div class="course-name">${classInfo.courseName}</div>
+                                </div>
+                            `;
+                        } else {
+                            const currentSlot = `${day}-${hour}`;
+                            const isSlotTakenByThisClassroom = occupiedTimeClassroomSlots.has(`${currentSlot}-${room.id}`);
+
+                            let availableTeacherName = null;
+                            if (!isSlotTakenByThisClassroom) {
+                                // 查找在此時段和此教室有空的老師
+                                const foundTeacher = teachers.find(teacher => {
+                                    return teacher.availableSlots.includes(`${currentSlot}-${room.name}`);
+                                });
+                                if (foundTeacher) {
+                                    availableTeacherName = foundTeacher.name;
+                                }
+                            }
+
+                            if (availableTeacherName) {
+                                cell.innerHTML = `
+                                    <div class="class-info available-slot">
+                                        ${availableTeacherName} 尚可預約
+                                    </div>
+                                `;
+                            } else {
+                                cell.textContent = ''; // 保持空白
+                            }
+                        }
+                        row.appendChild(cell);
+                    });
+                    tbody.appendChild(row);
+                });
+                table.appendChild(tbody);
+
+                container.appendChild(table);
+                resultDiv.appendChild(container);
+            }
+
+
+            // --- 課表顯示模式切換 ---
+            modeClassroomButton.addEventListener('click', () => {
+                currentScheduleViewMode = 'classroom';
+                modeClassroomButton.classList.add('active');
+                modeDayButton.classList.remove('active');
+                renderSchedule(currentScheduleViewMode);
+            });
+
+            modeDayButton.addEventListener('click', () => {
+                currentScheduleViewMode = 'day';
+                modeDayButton.classList.add('active');
+                modeClassroomButton.classList.remove('active');
+                renderSchedule(currentScheduleViewMode);
+            });
+
+
+            // --- CSV 匯入功能 ---
+            function parseCSV(csvText) {
+                const lines = csvText.trim().split('\n');
+                // Handle BOM for UTF-8 files in Excel
+                let firstLine = lines[0];
+                if (firstLine.charCodeAt(0) === 0xFEFF) {
+                    firstLine = firstLine.substring(1);
+                }
+                const headers = firstLine.split(',').map(h => h.trim());
+                const data = [];
+
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(',');
+                    if (values.length !== headers.length) {
+                        console.warn(`Skipping malformed row: ${lines[i]}`);
+                        continue;
+                    }
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index].trim();
+                    });
+                    data.push(row);
+                }
+                return data;
+            }
+
+            importTeachersButton.addEventListener('click', () => {
+                const file = importTeachersFile.files[0];
+                if (!file) {
+                    alert('請選擇一個老師資料 CSV 檔案。');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const csvData = parseCSV(e.target.result);
+                        if (!csvData[0] || !csvData[0].hasOwnProperty('姓名') || !csvData[0].hasOwnProperty('可教課程') || !csvData[0].hasOwnProperty('可用時段')) {
+                            alert('老師 CSV 檔案格式不正確，需要包含「姓名」、「可教課程」和「可用時段」欄位。');
+                            return;
+                        }
+                        
+                        csvData.forEach(row => {
+                            const name = row['姓名'];
+                            const canTeach = row['可教課程'] ? row['可教課程'].split(';').map(s => s.trim()) : [];
+                            // 這裡的 availableSlots 應該會是 Day-Hour-Classroom 格式，直接儲存即可
+                            let availableSlots = row['可用時段'] ? row['可用時段'].split(';').map(s => s.trim()) : [];
+
+                            // 簡化格式檢查，只檢查是否為Day-Hour-Classroom的格式
+                            const invalidSlots = availableSlots.filter(slot => {
+                                const parts = slot.split('-');
+                                return parts.length !== 3 || !days.includes(parts[0]) || !hours.includes(parts[1]) || !classrooms.some(r => r.name === parts[2]);
+                            });
+
+                            if (invalidSlots.length > 0) {
+                                console.warn(`老師 ${name} 的可用時段包含無效格式：${invalidSlots.join(', ')}。該老師的無效時段將被忽略。`);
+                                // 過濾掉無效時段
+                                availableSlots = availableSlots.filter(slot => !invalidSlots.includes(slot));
+                            }
+
+                            if (name && canTeach.length > 0 && availableSlots.length > 0) {
+                                // 匯入時也應用新增/更新邏輯
+                                const existingTeacher = teachers.find(t => t.name === name);
+                                if (existingTeacher) {
+                                    existingTeacher.canTeach = canTeach;
+                                    existingTeacher.availableSlots = availableSlots;
+                                } else {
+                                    addTeacher({ name, canTeach, availableSlots });
+                                }
+                            } else {
+                                console.warn(`Skipping invalid teacher data row: ${JSON.stringify(row)}`);
+                            }
+                        });
+                        alert('老師資料匯入成功！');
+                        renderTeachers(); // 確保匯入後列表更新
+                        saveTeachers(); // 保存老師資料
+                    } catch (error) {
+                        alert('匯入老師資料時發生錯誤：' + error.message);
+                        console.error(error);
+                    }
+                };
+                reader.readAsText(file);
+            });
+
+            importRequestsButton.addEventListener('click', () => {
+                const file = importRequestsFile.files[0];
+                if (!file) {
+                    alert('請選擇一個學生需求 CSV 檔案。');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const csvData = parseCSV(e.target.result);
+                        if (!csvData[0] || !csvData[0].hasOwnProperty('學生姓名') || !csvData[0].hasOwnProperty('想上的課程') || !csvData[0].hasOwnProperty('希望時段')) {
+                            alert('學生需求 CSV 檔案格式不正確，需要包含「學生姓名」、「想上的課程」和「希望時段」欄位。');
+                            return;
+                        }
+
+                        csvData.forEach(row => {
+                            const studentName = row['學生姓名'];
+                            const courseName = row['想上的課程'];
+                            // 學生的希望時段仍是 Day-Hour 格式
+                            let preferredSlots = row['希望時段'] ? row['希望時段'].split(';').map(s => s.trim()) : [];
+                            const assignedTeacherName = row['指定老師姓名'] ? row['指定老師姓名'].trim() : null;
+                            const assignedTeacherId = assignedTeacherName ? teachers.find(t => t.name === assignedTeacherName)?.id : null;
+
+
+                            const invalidSlots = preferredSlots.filter(slot => {
+                                const parts = slot.split('-');
+                                return parts.length !== 2 || !days.includes(parts[0]) || !hours.includes(parts[1]);
+                            });
+
+                            if (invalidSlots.length > 0) {
+                                console.warn(`學生 ${studentName} 的希望時段包含無效格式：${invalidSlots.join(', ')}。該學生將被跳過或其無效時段將被忽略。`);
+                                preferredSlots = preferredSlots.filter(slot => !invalidSlots.includes(slot));
+                            }
+
+                            if (studentName && courseName && preferredSlots.length > 0) {
+                                // 匯入時也應用新增/更新邏輯，這裡簡化處理，直接新增或更新
+                                const existingRequest = requests.find(r => r.studentName === studentName && r.courseName === courseName);
+                                if (existingRequest) {
+                                    existingRequest.preferredSlots = preferredSlots;
+                                    existingRequest.assignedTeacherId = assignedTeacherId;
+                                } else {
+                                    addRequest({ studentName, courseName, preferredSlots, assignedTeacherId });
+                                }
+                            } else {
+                                console.warn(`Skipping invalid request data row: ${JSON.stringify(row)}`);
+                            }
+                        });
+                        alert('學生需求資料匯入成功！');
+                        saveRequests(); // 保存學生需求資料
+                        renderRequests(); // 重新渲染列表以反映變更
+                    } catch (error) {
+                        alert('匯入學生需求資料時發生錯誤：' + error.message);
+                        console.error(error);
+                    }
+                };
+                reader.readAsText(file);
+            });
+
+            // --- CSV 匯出功能 ---
+            function exportCSV(filename, data, headers) {
+                let csvContent = "";
+                // Add BOM for proper Chinese character display in Excel
+                csvContent += "\ufeff"; 
+                csvContent += headers.join(',') + '\n';
+
+                data.forEach(row => {
+                    const rowValues = headers.map(header => {
+                        let value = row[header] || '';
+                        // If value is an array (like canTeach, availableSlots), join with semicolon
+                        if (Array.isArray(value)) {
+                            value = value.join(';');
+                        }
+                        // Escape double quotes and enclose in double quotes if value contains comma or double quote
+                        if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+                            value = `"${value.replace(/"/g, '""')}"`;
+                        }
+                        return value;
+                    });
+                    csvContent += rowValues.join(',') + '\n';
+                });
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            exportTeachersButton.addEventListener('click', () => {
+                const headers = ['姓名', '可教課程', '可用時段'];
+                const dataToExport = teachers.map(t => ({
+                    '姓名': t.name,
+                    '可教課程': t.canTeach, // will be joined by exportCSV
+                    '可用時段': t.availableSlots // will be joined by exportCSV (already Day-Hour-Classroom format)
+                }));
+                exportCSV('老師資料.csv', dataToExport, headers);
+            });
+
+            exportRequestsButton.addEventListener('click', () => {
+                const headers = ['學生姓名', '想上的課程', '希望時段', '指定老師姓名'];
+                const dataToExport = requests.map(r => ({
+                    '學生姓名': r.studentName,
+                    '想上的課程': r.courseName,
+                    '希望時段': r.preferredSlots, // will be joined by exportCSV (Day-Hour format)
+                    '指定老師姓名': r.assignedTeacherId ? teachers.find(t => t.id === r.assignedTeacherId)?.name : ''
+                }));
+                exportCSV('學生需求.csv', dataToExport, headers);
+            });
+
+            exportScheduleButton.addEventListener('click', () => {
+                if (simulatedSchedule.length === 0) {
+                    alert('目前沒有排課結果可以匯出。請先點擊「產生課表！」按鈕。');
+                    return;
+                }
+                const headers = ['學生姓名', '老師姓名', '課程名稱', '時段', '教室'];
+                const dataToExport = simulatedSchedule.map(s => ({
+                    '學生姓名': s.studentName,
+                    '老師姓名': s.teacherName,
+                    '課程名稱': s.courseName,
+                    '時段': s.slot,
+                    '教室': s.classroomName
+                }));
+                exportCSV('排課結果.csv', dataToExport, headers);
+            });
+
+            // --- 新增：匯出課表為圖片 (PNG) 功能 ---
+            exportScheduleImageButton.addEventListener('click', () => {
+                const scheduleResultElement = document.getElementById('schedule-result');
+                if (scheduleResultElement.innerHTML.includes('no-results')) {
+                    alert('目前沒有課表結果可以匯出為圖片。請先點擊「產生課表！」按鈕。');
+                    return;
+                }
+
+                // 移除任何可能影響截圖樣式的滾動條或邊界
+                const originalOverflowX = scheduleResultElement.style.overflowX;
+                scheduleResultElement.style.overflowX = 'visible'; // 確保內容不會被截斷
+
+                // --- 保護個資：只修改學生姓名 ---
+                const studentNameElements = scheduleResultElement.querySelectorAll('.class-info .student-name');
+                const originalStudentNames = [];
+
+                studentNameElements.forEach((element, index) => {
+                    originalStudentNames[index] = element.innerHTML; // 儲存原始學生姓名
+                    element.innerHTML = '已預約上課'; // 替換為「已預約上課」
+                });
+                // --- 保護個資修改結束 ---
+
+                html2canvas(scheduleResultElement, {
+                    scale: 2, // 提高解析度，讓圖片更清晰
+                    useCORS: true, // 如果圖片有跨域問題，可能需要這個選項
+                    logging: true, // 在控制台輸出日誌
+                }).then(canvas => {
+                    // 將 canvas 內容轉換為圖片 URL
+                    const image = canvas.toDataURL('image/png'); // 0.9 是壓縮品質，範圍 0-1
+
+                    // 創建一個連結元素，用於下載圖片
+                    const link = document.createElement('a');
+                    link.download = '排課結果_個資保護.png'; // 圖片檔案名稱
+                    link.href = image;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    alert('課表已匯出為圖片 (已隱藏學生姓名)！');
+                }).catch(error => {
+                    console.error('匯出圖片時發生錯誤:', error);
+                    alert('匯出圖片失敗，請檢查控制台錯誤訊息。');
+                }).finally(() => {
+                    // --- 恢復原始學生姓名 ---\
+                    studentNameElements.forEach((element, index) => {
+                        element.innerHTML = originalStudentNames[index]; // 恢復原始學生姓名
+                    });
+                    // 恢復原始溢出樣式
+                    scheduleResultElement.style.overflowX = originalOverflowX;
+                    // --- 恢復原始學生姓名結束 ---
+                });
+            });
+
+            // 初始化渲染，確保列表是空的或從 localStorage 加載
+            renderTeachers();
+            renderRequests();
+        });
+    </script>
+</body>
 </html>
